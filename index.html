@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            margin: 0;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <input type="file" id="fileInput" accept=".stl">
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/STLLoader.js"></script>
+    <script>
+        /* 創建場景 */
+        const scene = new THREE.Scene();
+
+        /* 創建攝影機 */
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight - 50);
+        document.body.appendChild(renderer.domElement);
+
+
+        /* 創建滑鼠控制 */
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+        /* 匯入STL檔案 */
+        const loadModel = (file) => {
+            const loader = new THREE.STLLoader();
+            loader.load(URL.createObjectURL(file), function (geometry) {
+
+                /* 材質 */
+                const material = new THREE.MeshNormalMaterial();
+                const mesh = new THREE.Mesh(geometry, material);
+                scene.add(mesh);
+
+                /* 攝影機位置 */
+                const boundingBox = new THREE.Box3().setFromObject(mesh);
+                const center = boundingBox.getCenter(new THREE.Vector3());
+                controls.target.copy(center);
+                camera.lookAt(center);
+                const boundingSphere = new THREE.Sphere();
+                boundingBox.getBoundingSphere(boundingSphere);
+                const radius = boundingSphere.radius;
+                const offset = radius * 1.5;
+                camera.position.set(center.x + offset, center.y + offset, center.z + offset);
+
+            });
+        }
+
+        /* 檔案載入 */
+        document.getElementById('fileInput').addEventListener('change', function (event) {
+            const file = event.target.files[0];
+            if (file) {
+                while (scene.children.length > 0) {
+                    scene.remove(scene.children[0]);
+                }
+                loadModel(file);
+            }
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+            controls.update();
+        }
+
+        animate();
+    </script>
+</body>
+
+</html>
