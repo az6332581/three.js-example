@@ -17,177 +17,117 @@
     <div id="app">
         <div id="controls">
             <input type="file" @change="handleFileChange" accept=".stl">
-            顏色：
-            <input type="color" id="colorPicker" @input="updateColor" value="#a8a8a8" />
-
-            相機：
-            <button @click="switchCamera">
-                {{ isPerspective ? '透視相機' : '無透視相機' }}
-            </button>
+            顏色：<input type="color" id="colorPicker" @input="updateColor" value="#a8a8a8" />
+            相機：<button @click="switchCamera">{{ isPerspective ? '透視相機' : '無透視相機' }}</button>
         </div>
     </div>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/TrackballControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/STLLoader.js"></script>
     <script>
-        const { createApp, ref, watch } = Vue
+        const { createApp, ref } = Vue
 
         createApp({
             setup() {
-                let L1 = ref(0)
                 let currentMesh = null;
                 let currentMaterial = null;
-
-                /* 建場景  */
                 const scene = new THREE.Scene();
-
                 const isPerspective = ref(true);
                 let camera = null;
 
-
-                /* 可透視相機 */
-                /* const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000); */
-
-                /* 不可透視相機 */
-                /* const aspect = window.innerWidth / window.innerHeight;
-                const frustumSize = 50;
-                const camera = new THREE.OrthographicCamera(
-                    frustumSize * aspect / -2,  // left
-                    frustumSize * aspect / 2,   // right
-                    frustumSize / 2,            // top
-                    frustumSize / -2,           // bottom
-                    0.1,                        // near
-                    1000                        // far
-                );
- */
-                /* 建相機 */
-
-                /* 透視 */
+                /* 兩種相機 */
                 const createPerspectiveCamera = () => {
-                    return new THREE.PerspectiveCamera(
-                        75,
-                        window.innerWidth / window.innerHeight,
-                        0.1,
-                        1000
-                    );
+                    const cam = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                    cam.position.set(50, 50, 50);
+                    cam.lookAt(0, 0, 0);
+                    return cam;
                 };
 
-                /* 沒有透視 */
                 const createOrthographicCamera = () => {
                     const aspect = window.innerWidth / window.innerHeight;
-                    const frustumSize = 50;
-                    return new THREE.OrthographicCamera(
-                        frustumSize * aspect / -2,  // left
-                        frustumSize * aspect / 2,   // right
-                        frustumSize / 2,            // top
-                        frustumSize / -2,           // bottom
-                        0.1,                        // near
-                        1000                        // far
+                    const frustumSize = 100;
+                    const cam = new THREE.OrthographicCamera(
+                        frustumSize * aspect / -2, frustumSize * aspect / 2,
+                        frustumSize / 2, frustumSize / -2, 0.1, 1000
                     );
+                    cam.position.set(50, 50, 50);
+                    cam.lookAt(0, 0, 0);
+                    return cam;
                 };
 
                 camera = createPerspectiveCamera();
-
-
-
-
-
-
-                /* 渲染 */
                 const renderer = new THREE.WebGLRenderer();
                 renderer.setSize(window.innerWidth, window.innerHeight);
                 document.body.appendChild(renderer.domElement);
-
                 renderer.setClearColor(0x000000);
 
-                /* 建滑鼠 */
-                const controls = new THREE.OrbitControls(camera, renderer.domElement);
+                /* 控制器 */
+                let controls = new THREE.TrackballControls(camera, renderer.domElement);
+                controls.rotateSpeed = 5.0;
+                controls.zoomSpeed = 1.2;
+                controls.panSpeed = 0.8;
+                controls.dynamicDampingFactor = 0.3;
+                controls.noZoom = false;
+                controls.noPan = false;
 
-                /* 建環境光 */
+                /* 光源 */
                 const ambientLight = new THREE.AmbientLight(0x404040);
                 scene.add(ambientLight);
 
                 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
                 scene.add(directionalLight);
 
-                /* 上下左右前後添加光源 (可選) */
                 const pointLight1 = new THREE.PointLight(0xffffff, 1, 200);
-                pointLight1.position.set(0, 0, 100);
+                pointLight1.position.set(100, 100, 100);
                 scene.add(pointLight1);
-                const pointLight2 = new THREE.PointLight(0xffffff, 1, 200);
-                pointLight2.position.set(0, 0, -100);
-                scene.add(pointLight2);
-                const pointLight3 = new THREE.PointLight(0xffffff, 1, 200);
-                pointLight3.position.set(0, 100, 0);
-                scene.add(pointLight3);
-                const pointLight4 = new THREE.PointLight(0xffffff, 1, 200);
-                pointLight4.position.set(0, -100, 0);
-                scene.add(pointLight4);
-                const pointLight5 = new THREE.PointLight(0xffffff, 1, 200);
-                pointLight5.position.set(100, 0, 0);
-                scene.add(pointLight5);
-                const pointLight6 = new THREE.PointLight(0xffffff, 1, 200);
-                pointLight6.position.set(-100, 0, 0);
-                scene.add(pointLight6);
 
-                /* 渲染 */
-                animate = () => {
+                const pointLight2 = new THREE.PointLight(0xffffff, 1, 200);
+                pointLight2.position.set(-100, -100, -100);
+                scene.add(pointLight2);
+
+                /* 動畫更新 */
+                const animate = () => {
                     requestAnimationFrame(animate);
-                    renderer.render(scene, camera);
                     controls.update();
-                }
+                    renderer.render(scene, camera);
+                };
                 animate();
 
 
+                /* 上傳 */
                 const handleFileChange = (event) => {
                     const file = event.target.files[0];
                     if (file) {
                         const reader = new FileReader();
                         reader.onload = function (e) {
-                            /* if (currentMesh) {
-                                scene.remove(currentMesh);
-                                currentMesh.geometry.dispose();
-                                currentMesh.material.dispose();
-                                currentMesh = null;
-                            } */
-
                             const arrayBuffer = e.target.result;
                             const loader = new THREE.STLLoader();
                             const geometry = loader.parse(arrayBuffer);
-
                             const colorPicker = document.getElementById("colorPicker");
                             currentMaterial = new THREE.MeshStandardMaterial({ color: colorPicker.value });
-
                             const mesh = new THREE.Mesh(geometry, currentMaterial);
-                            mesh.position.y = 1;
                             scene.add(mesh);
-
                             currentMesh = mesh;
-
-                            /* 攝影機位置 */
                             const boundingBox = new THREE.Box3().setFromObject(mesh);
                             const center = boundingBox.getCenter(new THREE.Vector3());
                             controls.target.copy(center);
                             camera.lookAt(center);
-                            const boundingSphere = new THREE.Sphere();
-                            boundingBox.getBoundingSphere(boundingSphere);
-                            const radius = boundingSphere.radius;
-                            const offset = radius * 1.2;
-                            camera.position.set(center.x + offset, center.y + offset, center.z + offset);
+                            const size = boundingBox.getSize(new THREE.Vector3());
+                            const maxDim = Math.max(size.x, size.y, size.z);
+                            camera.position.set(center.x + maxDim, center.y + maxDim, center.z + maxDim);
                         };
                         reader.readAsArrayBuffer(file);
                     }
                 };
 
+
                 const updateColor = (event) => {
-                    const color = event.target.value;
                     if (currentMaterial) {
-                        currentMaterial.color.set(color);
+                        currentMaterial.color.set(event.target.value);
                     }
                 };
 
-                /* 切换相机 */
                 const switchCamera = () => {
                     if (isPerspective.value) {
                         camera = createOrthographicCamera();
@@ -195,18 +135,16 @@
                         camera = createPerspectiveCamera();
                     }
                     isPerspective.value = !isPerspective.value;
-                    controls.object = camera; // 更新控件中的相机
+                    controls.object = camera;
                 };
 
                 return {
-                    L1,
                     handleFileChange,
                     switchCamera,
                     isPerspective
                 }
             }
         }).mount('#app')
-
     </script>
 </body>
 
